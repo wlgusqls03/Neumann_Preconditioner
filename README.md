@@ -30,7 +30,7 @@
 	    ex) python calculation_files.py  처럼 args 는 없고 파일 내부에서 설정하도록 코드 작성
 
 
-## line_plot.py
+## line_cutoff_plot.py
 - 이 코드는 total diagonalization time 과 iteration count, Neumann preconditioner 의 outerorder 가 dynamic 인 경우에 매 iteration 마다 사용하는 order 에 대하여 그래프를 제작하는 코드이다.
   
 - x 축은 preconditioner 의 종류와 Neumann preconditioner 계산에서 사용한 cutoff_error 를 나열한 precond type 을 의미한다.
