@@ -1,4 +1,4 @@
-# Neumann preconditioner를 이용한 전자 구조 계산 
+# Neumann preconditioner를 이용한 전자 구조 계산 및 성능 비교
 
 ## run_files.py
 
