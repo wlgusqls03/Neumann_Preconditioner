@@ -1,5 +1,12 @@
 # Neumann preconditioner를 이용한 전자 구조 계산 및 성능 비교
 
+##환경 설정
+
+		# 가상환경 생성
+		conda create -n Neumann_precond python=3.12
+  		conda activate Neumann_precond
+
+  		# 
 ## run_files.py
 
 
