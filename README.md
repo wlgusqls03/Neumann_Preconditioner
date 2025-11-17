@@ -48,7 +48,36 @@ Commit: 7947754a5d1e6b5743f976c2fe46aba8b97c227a
 
 ##사용 예시
 
-		# 1.  
+		# 1.  Neumann preconditioner fixed diagonalization 계산
+		python test.py \
+			--filepath data/systems/C60.xyz \
+			--phase fixed  --spacing 0.2 --supercell 1 1 1  --pbc 0 0 0 \
+			--temperature 0.00    --pp_type TM  \ 
+			--virtual_factor 1.2 --diag_tol 1e-6 --diag_iter 11 \
+			--precond neumann  --outerorder 10 \
+			--retHistory History.neumann.pt
+
+		# 2.  ISI preconditioner 계산
+		python test.py \
+			--filepath data/systems/C60.xyz \
+			--phase scf  --spacing 0.2 --supercell 1 1 1  --pbc 0 0 0 \
+			--temperature 0.00    --pp_type TM  \ 
+			--virtual_factor 1.2 --diag_tol 1e-6 --diag_iter 11 \
+			--precond shift-and-invert  --innerorder 0 --pcg_iter 5 \
+			--retHistory History.neumann.pt
+
+		# 3.  Merge preconditioner (Neumann + ISI) 계산
+		python test.py \
+			--filepath data/systems/MAPbI3.cif \
+			--phase scf  --spacing 0.2 --supercell 2 2 2  --pbc 0 0 0 \
+			--temperature 0.00    --pp_type TM  \ 
+			--virtual_factor 1.2 --diag_tol 1e-4 --diag_iter 11 \
+			--precond merge  --outerorder 4 --mergee_iter 5 --innerorder 0 --pcg_iter 5 \
+			--retHistory History.neumann.pt
+
+		# 4.  시스템 반복 계산
+		nohub python repeat_test.py --mode scf-then-fixed > log 2>&1 &
+			* 코드 내부에 계산 수행 파일 설정 및 반복 계산 설정을 수정하여 실행
 		
 		
 
