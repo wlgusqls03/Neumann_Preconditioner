@@ -88,9 +88,9 @@ Git state 가 아래와 같은지 확인
 		
 	2. SELECTED_SYSTEMS: List[str] = {...} 부분에 systems에 존재하는 파일 중, 반복 계산을 수행할 물질을 선택한다. 
 
-	3. OVERRIDE_BY_NAME: Dict[str, Dict] = {...} 부분은 2번에서 지정한 물질들의 spacing 및 supercell 에 대한 반복 계산을 위해 설정하는 부분이다.
-	이 부분을 따로 작성하지 않았지만, SELECTED_SYSTEMS: List[str] = {...} 구분에 들어있는 계산 시스템은
-	DEFAULT_SYSTEM_PARAMS = {...} 의 계산 설정을 받게 된다.
+	3. OVERRIDE_BY_NAME: Dict[str, Dict] = {...} 부분은 2번에서 지정한 물질들의 
+	spacing 및 supercell 에 대한 반복 계산을 위해 설정하는 부분이다. 이 부분을 따로 작성하지 않았지만,
+	SELECTED_SYSTEMS: List[str] = {...} 구분에 들어있는 계산 시스템은 DEFAULT_SYSTEM_PARAMS = {...} 의 계산 설정을 받게 된다.
 	ex)
 		SELECTED_SYSTEMS: List[str] = [
     						"MAPbI3.cif",
@@ -129,7 +129,7 @@ Git state 가 아래와 같은지 확인
 			)
 		
 		GLOBAL_FIXED = dict(
-    		mode="scf-then-fixed",  # "scf" | "fixed" | "scf-then-fixed"  ---> scf 결과 이후 바로 fixed hamiltonian diagonalization 수행
+    		mode="scf-then-fixed",  # "scf" | "fixed" | "scf-then-fixed" 
     		phase="fixed",          # fixed 랑 scf 를 따로 돌릴때 설정, scf-then-fixed 이면 반영 X
     		temperature=0.00,       # 물질 온도 설정
     		scf_energy_tol=1e-6,    # SCF 에너지 tolerence
@@ -138,7 +138,7 @@ Git state 가 아래와 같은지 확인
     		warmup_when_cuda=1,     # GPU 계산시 warmup
     		diag_iter=1000,         # fixed hamiltonian diagonalization
     		diag_tol=None,          # None ⇒ 미전달
-    		diag_iter_scf=11,       # 1회 SCF 에 수행하는 대각화 횟수 --> diag_iter_scf - 1 이 preconditioning 횟수 (첫번째는 X)
+    		diag_iter_scf=11,       # 1회 SCF 에 수행하는 대각화 횟수 --> diag_iter_scf - 1 이 preconditioning 횟수
     		diag_iter_fixed=1000,   # fixed hamiltonian diagonalization 에서 주는 반복 횟수
     		diag_tol_scf=None,      # SCF는 미전달(내부 디폴트) --> density_diff * 0.1
     		diag_tol_fixed=1e-6,    # fixed hamiltonian diagonalization에서 대각화 tolerence
@@ -161,4 +161,5 @@ Git state 가 아래와 같은지 확인
 
 	7. 결과 폴더 내부에 log 폴더는 SCF 계산에서 나온 log를 저장한다.
 
-	8. 결과 폴더 내부에 history 폴더는 fixed hamiltonian diagonalization 의 residual, eigenvalue history 파일과 출력 로그를 확인할 수 있다.
+	8. 결과 폴더 내부에 history 폴더는 fixed hamiltonian diagonalization의 
+	residual, eigenvalue history 파일과 출력 로그를 확인할 수 있다.
