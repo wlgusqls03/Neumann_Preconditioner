@@ -42,9 +42,9 @@
 
 Git state 가 아래와 같은지 확인
 
-Branch: multi_gpu
+* Branch: multi_gpu
 
-Commit: 7947754a5d1e6b5743f976c2fe46aba8b97c227a
+* Commit: 7947754a5d1e6b5743f976c2fe46aba8b97c227a
 
 ##사용 예시
 
@@ -80,8 +80,3 @@ Commit: 7947754a5d1e6b5743f976c2fe46aba8b97c227a
 			* 코드 내부에 계산 수행 파일 설정 및 반복 계산 설정을 수정하여 실행
 		
 		
-
-
-- 결과 파일이 있는 폴더의 경로와 그래프를 생성할 코드를 각각 --root , --out 에 줘야한다.
-
-  		ex) python line_plot.py --root ./results_diractory --out ./graph_diractory
