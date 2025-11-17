@@ -20,7 +20,7 @@ try:
     from precondition_new2 import create_preconditioner  # local
 except Exception:
     print("Warning: using gospel's preconditioner instead of local neumann_precond")
-    from gospel.Eigensolver.precondition_new import create_preconditioner  # fallback
+    from gospel.Eigensolver.precondition import create_preconditioner  # fallback
 
 from utils import block_all_print, get_git_commit, make_atoms
 
