@@ -1,4 +1,8 @@
+# file: repeat_test.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from __future__ import annotations
+
 import argparse
 import dataclasses
 import itertools
@@ -19,15 +23,21 @@ from typing import Dict, Iterator, List, Optional, Sequence, Tuple, Set
 - SCF/FIXED 로그/요약 기록
 - diag_iter: SCF/FIXED 분리 전달 유지
 - diag_tol: phase별 선택 전달 (None이면 옵션 자체 미전달 → 테스트 스크립트 내부 디폴트 사용)
+
+사용 예시
+nohub python repeat_test.py --mode scf-then-fixed > log 2>&1 &
 """
 
-# =============================================================
-# 경로/기본설정
-RESULTS_ROOT = Path("result_scaleup")
+# ========== 파일 경로 및 시스템 파일경로 설정 ==========
+
+RESULTS_ROOT = Path("result_scail_up")  # 계산 결과를 저장할 파일
 DENSITY_KEY_MODE = os.environ.get("DENSITY_KEY_MODE", "geom4").lower()
 
-SYSTEM_ROOTS = ("data/systems",)
-INCLUDE_EXTS = ("*.cif", "*.sdf", "*.xyz")
+SYSTEM_ROOTS = ("data/systems",)  # 시스템 파일이 들어있는 경로
+INCLUDE_EXTS = ("*.cif", "*.sdf", "*.xyz")  # 물질들 확장자
+
+# ========== 계산에 사용할 시스템 설정 ==========
+# systems 내부에 있는 xyz, cif, sdf 파일 중  계산에 사용할 파일 이름 입력
 
 SELECTED_SYSTEMS: List[str] = [
     # ------------결정--------------
@@ -36,77 +46,108 @@ SELECTED_SYSTEMS: List[str] = [
     "Si_diamond.cif",
     "MgO.cif",
     # -----------생분자-------------
-    #    "aspirin.sdf",             # 필요시 주석 제거 (시간 스케일 너무 작음)
+    #   "aspirin.sdf",             # 필요시 주석 제거 (시간 스케일 너무 작음)
     "beta_carotene.sdf",
-    "B12.cif",
+    "B12.sdf",
     "Maltododecaose.sdf",
     # ---------일반 분자------------
-    "water_cluster.xyz",
-    #    "C60.xyz",                 # 필요시 주석 제거 (tetramer 계산으로 제외)
-    #    "C60_dimer.xyz",           # 필요시 주석 제거 (tetramer 계산으로 제외)
-    "C60_tetramer.xyz",
+    "water_cluster_64.xyz",  # 이전 계산 결과
+    "water_cluster_80.xyz",
+    "water_cluster_90.xyz",
+    "water_cluster_108.xyz",
+    "water_cluster_128.xyz",
+    "C60_1.xyz",  # monomer
+    "C60_2.xyz",  # dimeer
+    "C60_3.xyz",  # trimer
+    "C60_4.xyz",  # tetramer
 ]
 
-DEFAULT_SYSTEM_PARAMS = dict(nbands=None, supercell=(1, 1, 1), pbc=None, spacing=0.2)
+DEFAULT_SYSTEM_PARAMS = dict(
+    nbands=None, supercell=(1, 1, 1), pbc=None, spacing=0.2
+)  # 기본 supercell 과 spacing 설정
 
-OVERRIDE_BY_NAME: Dict[str, Dict] = {
+OVERRIDE_BY_NAME: Dict[
+    str, Dict
+] = {  # default 설정(supercell = [1, 1, 1], pbc = (0, 0, 0), spacing  = 0.2)이 아니라면, 아래에서 물질별로 수정 가능
     # ------------결정--------------
     "CsPbI3.cif": {
-        "supercell": (4, 3, 3),
+        "supercell": [
+            (4, 3, 3),  # supercell 을 리스트 형태로  주어  반복  계산  가능
+            (3, 3, 3),
+            (3, 3, 2),  # 이전 결과 superceell
+        ],
         "pbc": (1, 1, 1),
-    },  # 스케일 업 하여 계산 진행 supercell 3 3 2 --> 4 3 3 (2배)
+    },  
     "MAPbI3.cif": {
-        "supercell": (2, 2, 2),
+        "supercell": [
+            (3, 2, 2),
+            (2, 2, 2),
+            (2, 2, 1),  # 이전  결과 supercell
+        ],
         "pbc": (1, 1, 1),
-    },  # 스케일 업 하여 계산 진행 supercell 2 2 1 --> 2 2 2 (2배)
+    },  
     "Si_diamond.cif": {
-        "supercell": (3, 3, 3),
+        "supercell": [
+            (4, 4, 4), 
+            (4, 4, 3),
+            (4, 3, 3),
+            (3, 3, 3),  # 이전 결과 superceell
+        ],
         "pbc": (1, 1, 1),
-    },  # 스케일 업 하여 계산 진행 supercell 3 3 3 --> 4 4 4 (2.3배)
+    },
     "MgO.cif": {
-        "supercell": (4, 4, 4),
+        "supercell": [
+            (4, 4, 4),
+            (4, 4, 3),
+            (4, 3, 3),  # 이전 결과 supercell
+        ],
         "pbc": (1, 1, 1),
-    },  # 스케일 업 하여 계산 진행 supercell 4 3 3 --> 4 4 4 (1.8배)
-    # -----------생분자-------------
+    },
+    #     -----------생분자-------------  #  생분자, 일반분자는 따로 설정해주지 않아도  supercell = [1, 1, 1] 과  pbc = (0,  0, 0) 로 설정
+    #  spacing 을 다르게 하거나, 특이한 경우에 아래와 같이 설정
     #    "aspirin.sdf": {
     #        "supercell": (1, 1, 1),
     #        "pbc": (0, 0, 0),
-    #    }, # (MW = 180.16 g/mol) 스케일 키우기 불가능 --> 제외
-    "beta_carotene.sdf": {
-        "supercell": (1, 1, 1),
-        "pbc": (0, 0, 0),
-    },  # (MW = 536.888 g/mol)
-    "B12.cif": {
-        "supercell": (1, 1, 1),
-        "pbc": (0, 0, 0),
-    },  # (MW = 1335.4 g/mol) 새롭게 추가된 분자, Co와 같은 금속이 1개 있음
-    "Maltododecaose.sdf": {
-        "supercell": (1, 1, 1),
-        "pbc": (0, 0, 0),
-    },  # (MW = 1639.42 g/mol) 새롭게 추가된 분자, C, H, O 로만 이루어진 선형 올리고당
-    # ---------일반 분자------------
-    "water_cluster.xyz": {
-        "supercell": (1, 1, 1),
-        "pbc": (0, 0, 0),
-    },  # 스케일 업 하여 계산 진행 물분자 64개 --> 128개(2배)
+    #    }, # (MW = 180.16 g/mol)   특이사항 : 스케일 키우기 불가능 --> 제외
+    #    "beta_carotene.sdf": {
+    #        "supercell": (1, 1, 1),
+    #        "pbc": (0, 0, 0),
+    #    },  # (MW = 536.888 g/mol)
+    #    "B12.sdf": {
+    #        "supercell": (1, 1, 1),
+    #        "pbc": (0, 0, 0),
+    #    },  # (MW = 1335.4 g/mol) 특이사항 : Co와 같은 금속이 1개 있음
+    #    "Maltododecaose.sdf": {
+    #        "supercell": (1, 1, 1),
+    #        "pbc": (0, 0, 0),
+    #    },  # (MW = 1639.42 g/mol) 특이사항 : C, H, O 로만 이루어진 선형 올리고당
+    #
+    #    # ---------일반 분자------------
+    #
+    #    "water_cluster_64.xyz": {
+    #        "supercell": (1, 1, 1),
+    #        "pbc": (0, 0, 0),
+    #    },  # 스케일 업 하여 계산 진행 물분자 64개 --> 128개(2배)
     #    "C60.xyz": {
     #        "supercell": (1, 1, 1),
     #        "pbc": (0, 0, 0),
     #    },  # tetramer 계산으로 제외 --> 필요하면 주석 제거
-    #    "C60_dimer.xyz": {
+    #    "C60_2.xyz": {
     #        "supercell":(1, 1, 1),
     #        "pbc": (0, 0, 0),
-    #    },  # tetramer 계산으로 제외 --> 필요하면 주석 제거
-    "C60_tetramer.xyz": {
-        "supercell": (1, 1, 1),
-        "pbc": (0, 0, 0),
-    },  # 스케일 업 하여 계산 진행 C60 2개 --> 4개 (2차원으로 2개씩)
+    #     },  # tetramer 계산으로 제외 --> 필요하면 주석 제거
+    #    "C60_4.xyz": {
+    #        "supercell": (1, 1, 1),
+    #        "pbc": (0, 0, 0),
+    #     },  # 스케일 업 하여 계산 진행 C60 2개 --> 4개 (2차원으로 2개씩)
 }
-# ---- 사용자가 스윕으로 넘길 값들 값을 리스트로 주면 여러번 반복 계산
+
+# ========== 반복 계산 값 추가(값을 리스트로 주면 여러번 반복 계산) ==========
+
 USER_SWEEP = dict(
     preconds=[],  # 예: ["neu_ISI"], 공백이면 neu, neu_ISI, ISI 전부 실행
     threads=[1],
-    outerorder=[0, 2, 4, 6, 8, 10],  # neumann preconditioner 의 order
+    outerorder=[0, 2, 4, 6, 8, 10, "res"],  # neumann preconditioner 의 order
     innerorder=[0],  # ISI preconditioner 의 innerprecond neumann 의 order
     pcg_neumann=[5],  # ISI preconditioner 의 pcg iter
     error_cutoff=[-0.4],  # Error cutoff --> neumann order - dynamic 일때
@@ -116,20 +157,19 @@ USER_SWEEP = dict(
     merge_iter=[3, 5, 7, 9],  # neu_ISI 에서 초반 neumann precond 횟수 설정
 )
 
-# NOTE: diag_iter는 legacy + phase별; diag_tol은 기본 None(미전달)
+# ========== 고정값 추가 ==========
+
 GLOBAL_FIXED = dict(
     mode="scf-then-fixed",  # "scf" | "fixed" | "scf-then-fixed"  ---> scf 결과 이후 바로 fixed hamiltonian diagonalization 수행
     phase="fixed",  # fixed 랑 scf 를 따로 돌릴때 설정, scf-then-fixed 이면 반영 X
     temperature=0.00,  # 물질 온도 설정
     scf_energy_tol=1e-6,  # SCF 에너지 tolerence
     pp_type="TM",  # pseudopotential 종류
-    use_cuda=True,  # GPU, CPU 여부
+    use_cuda=False,  # GPU, CPU 여부
     warmup_when_cuda=1,  # warmup 시간 --> GPU 면 있어야한다.
-    # legacy 공통값
     diag_iter=1000,  # fixed hamiltonian diagonalization
     diag_tol=None,  # None ⇒ 미전달
-    # phase별 override(None이면 legacy/글로벌 대신 미전달 로직에서 처리)
-    diag_iter_scf=10,  # 1회 SCF 에 수행하는 대각화 횟수
+    diag_iter_scf=11,  # 1회 SCF 에 수행하는 대각화 횟수 --> diag_iter_scf - 1 이 preconditioning 횟수 (첫번째는 X)
     diag_iter_fixed=1000,  # fixed hamiltonian diagonalization 에서 주는 반복 횟수
     diag_tol_scf=None,  # SCF는 미전달(내부 디폴트) --> density_diff * 0.1
     diag_tol_fixed=1e-6,  # fixed hamiltonian diagonalization에서 대각화 tolerence
@@ -144,8 +184,8 @@ GLOBAL_FIXED = dict(
     seed=0,
 )
 
-# 타이머 요약 필드
-CALC_SUMMARY_FIELDS = {
+# ========== 타이머 요약 필드 ==========
+CALC_SUMMARY_FIELDS = {  # 로그에서 특정 라벨을 찾기 위한 후보 문자열
     "davidson_total": {
         "candidates": [
             "davidson",
@@ -172,25 +212,25 @@ CALC_SUMMARY_FIELDS = {
 
 VARY_TOKENS: Set[str] = set()
 
-# =============================================================
-# 유틸
+# ========== 유틸 ==========
+
 _slug_re = re.compile(r"[^A-Za-z0-9_.-]+")
 
 
-def slugify(s: str) -> str:
+def slugify(s: str) -> str:  # 영문, 숫
     return _slug_re.sub("-", s).strip("-")
 
 
-def pair_to_str(xyz: Tuple[int, int, int]) -> str:
+def pair_to_str(xyz: Tuple[int, int, int]) -> str:  # (a, b, c) --> axbxc
     return "x".join(map(str, xyz))
 
 
-def ensure_dir(p: Path) -> Path:
+def ensure_dir(p: Path) -> Path:  # 설정한 디랙토리가 없으면 생성
     p.mkdir(parents=True, exist_ok=True)
     return p
 
 
-def tail_print(path: Path, n: int = 40) -> None:
+def tail_print(path: Path, n: int = 40) -> None:  # 로그 파일 마지막 n 줄 출력, 에러 확인용
     try:
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             lines = f.readlines()[-n:]
@@ -203,15 +243,18 @@ def tail_print(path: Path, n: int = 40) -> None:
         print(f"[TAIL][ERR] {path}: {e}")
 
 
-# =============================================================
-# 시스템 스캔
-def _as_optional_int_seq(v):
+# ========== 시스템 스캔 ==========
+
+
+def _as_optional_int_seq(v):  # 입력값을 튜플로 정규화
     if isinstance(v, (list, tuple)):
         return tuple(None if x is None else int(x) for x in v)
     return (None if v is None else int(v),)
 
 
-def _as_tuple3_seq(v, default=(1, 1, 1)):
+def _as_tuple3_seq(
+    v, default=(1, 1, 1)
+):  # supercell, pbc 처럼 3개의 정수를 가진 tuple들의 tuple 로 변화 (if v = (a, b, c) --> ((a, b, c), )
     if v is None:
         v = default
     if (
@@ -223,7 +266,7 @@ def _as_tuple3_seq(v, default=(1, 1, 1)):
     return tuple(tuple(int(a) for a in t) for t in v)
 
 
-def _as_number_seq(v, default: float):
+def _as_number_seq(v, default: float):  # 숫자 혹은 리스트를 tuple 로 정규화
     if v is None:
         v = default
     if isinstance(v, (list, tuple)):
@@ -231,7 +274,7 @@ def _as_number_seq(v, default: float):
     return (float(v),)
 
 
-def _get_override_by_name(name: str) -> Dict:
+def _get_override_by_name(name: str) -> Dict:  # OVERRIDE_BY_NAME 에서 사용한 설정으로 덮어쓰기
     if name in OVERRIDE_BY_NAME:
         return OVERRIDE_BY_NAME[name]
     name_l = name.lower()
@@ -245,20 +288,30 @@ def _get_override_by_name(name: str) -> Dict:
     return {}
 
 
-def _mk_system_entry(p: Path) -> Dict[str, Sequence]:
+def _mk_system_entry(
+    p: Path,
+) -> Dict[
+    str, Sequence
+]:  # 하나의 시스템 파일에서 suffix 로 pbc 를 결정하고, 최종 cfg 생성 {"nbands" = ..., "supercell" = ...}
     suffix = p.suffix.lower()
-    default_pbc = (0, 0, 0) if suffix in (".sdf", ".xyz") else (1, 1, 1)
+    default_pbc = (
+        (0, 0, 0) if suffix in (".sdf", ".xyz") else (1, 1, 1)
+    )  # OVERRIDING 에 적지 않은 경우엔 pbc가 xyz,  sdf인 경우 (0, 0, 0), cif 파일이면 (1, 1, 1)로 설정
     cfg = {**DEFAULT_SYSTEM_PARAMS, **_get_override_by_name(p.name)}
     return {
         "nbands": _as_optional_int_seq(cfg.get("nbands")),
-        "supercell": _as_tuple3_seq(cfg.get("supercell", (1, 1, 1))),
+        "supercell": _as_tuple3_seq(
+            cfg.get("supercell", (1, 1, 1))
+        ),  # supercell 은 [1, 1, 1] 로   고정
         "pbc": _as_tuple3_seq(cfg.get("pbc", default_pbc), default_pbc),
-        "spacing": _as_number_seq(cfg.get("spacing", 0.2), 0.2),
+        "spacing": _as_number_seq(cfg.get("spacing", 0.2), 0.2),  # spacing 은 0.2 로  고정
     }
 
 
-def scan_systems() -> Dict[str, Dict[str, Sequence]]:
-    names = set(SELECTED_SYSTEMS) if SELECTED_SYSTEMS else None
+def scan_systems() -> Dict[str, Dict[str, Sequence]]:  # 실제 디스크에서 시스템을 찾는 함수
+    names = (
+        set(SELECTED_SYSTEMS) if SELECTED_SYSTEMS else None
+    )  # SYSTEM_ROOTS 아래에 INCLUDE_EXTS 패턴으로 탐색
     out: Dict[str, Dict[str, Sequence]] = {}
     for root in SYSTEM_ROOTS:
         rp = Path(root)
@@ -268,7 +321,7 @@ def scan_systems() -> Dict[str, Dict[str, Sequence]]:
             for p in rp.rglob(pat):
                 if names and p.name not in names:
                     continue
-                out[str(p)] = _mk_system_entry(p)
+                out[str(p)] = _mk_system_entry(p)  # {"파일 경로" : {옵션들}} 딕셔너리로 리턴
     return out
 
 
@@ -276,12 +329,12 @@ def scan_systems() -> Dict[str, Dict[str, Sequence]]:
 # 설정 컨테이너
 @dataclass
 class FixedConfig:
-    python_exe: str = sys.executable
-    test_script: str = str(Path(__file__).with_name("test.py"))
+    python_exe: str = sys.executable  # 사용할 파이썬 실행기
+    test_script: str = str(Path(__file__).with_name("test.py"))  # 실제 계산을 수행하는 스크립트
 
     DENSITY_ROOT: Path = RESULTS_ROOT / "density"
     HISTORY_ROOT: Path = RESULTS_ROOT / "history"
-    LOG_ROOT: Path = RESULTS_ROOT / "logs"
+    LOG_ROOT: Path = RESULTS_ROOT / "logs"  # 결과 저장 루트들
 
     mode: str = GLOBAL_FIXED.get("mode", "scf-then-fixed")
     phase: str = GLOBAL_FIXED.get("phase", "fixed")
@@ -290,7 +343,7 @@ class FixedConfig:
     pp_type: str = GLOBAL_FIXED.get("pp_type", "TM")
     use_cuda: bool = GLOBAL_FIXED.get("use_cuda", True)
     warmup_when_cuda: int = GLOBAL_FIXED.get("warmup_when_cuda", 1)
-    virtual_factor: float = GLOBAL_FIXED.get("virtual_factor", 1.2)
+    virtual_factor: float = GLOBAL_FIXED.get("virtual_factor", 1.2)  # 물리, 계산 옵션
 
     # diag_iter: 분리 유지
     diag_iter_scf: int = GLOBAL_FIXED.get(
@@ -350,10 +403,10 @@ class FixedConfig:
     )
 
 
-CFG = FixedConfig()
+CFG = FixedConfig()  # 전역 설정 인스턴트 하나 만들어서 코드 전체에 대해서 사용
 
 
-def apply_user_sweep_to_cfg():
+def apply_user_sweep_to_cfg():  # USER_SWEEP 에 사용자가 적어둔 값을 CFG 에 반영하는 함수
     if USER_SWEEP.get("preconds"):
         CFG.preconds = tuple(USER_SWEEP["preconds"])
     if USER_SWEEP.get("threads"):
@@ -393,8 +446,8 @@ def apply_user_sweep_to_cfg():
         CFG.merge_neu_steps_list = tuple(int(x) for x in USER_SWEEP["merge_iter"])
 
 
-# =============================================================
-# 로그 파서
+# ========= 결과 로그에서 원하는 값 추출 ==========
+
 _davidson_re = re.compile(r"^\s*davidson\s*\|\s*([0-9]*\.?[0-9]+)\s*\|", re.M)
 _timer_row_re = re.compile(
     r"^(?P<label>[A-Za-z0-9 .()_@&\\/\\-]+?)\s*\|\s*(?P<total>[0-9]*\.?[0-9]+)\s*\|\s*(?P<count>\d+)\s*$",
@@ -402,7 +455,9 @@ _timer_row_re = re.compile(
 )
 
 
-def parse_davidson_seconds(log_path: Path) -> Optional[float]:
+def parse_davidson_seconds(
+    log_path: Path,
+) -> Optional[float]:  # davidson_re 로 한 줄 찾아 시간으로 기록
     try:
         text = log_path.read_text(encoding="utf-8", errors="ignore")
     except Exception:
@@ -416,7 +471,9 @@ def parse_davidson_seconds(log_path: Path) -> Optional[float]:
         return None
 
 
-def parse_timer_metrics(log_path: Path) -> Dict[str, Dict[str, float]]:
+def parse_timer_metrics(
+    log_path: Path,
+) -> Dict[str, Dict[str, float]]:  # 타이머 표 전체를 읽어 딕셔너리로 값들 생성
     try:
         text = log_path.read_text(encoding="utf-8", errors="ignore")
     except Exception:
@@ -430,7 +487,7 @@ def parse_timer_metrics(log_path: Path) -> Dict[str, Dict[str, float]]:
     return out
 
 
-def pick_metric(
+def pick_metric(  # 첫번째로 존재하는 label 의 값을 꺼내줌
     metrics: Dict[str, Dict[str, float]], candidates: List[str], attr: str
 ) -> Optional[float]:
     for key in candidates:
@@ -459,7 +516,7 @@ class Combo:
     merge_neu_steps: Optional[int]
 
 
-def generate_combos(cfg: FixedConfig) -> Iterator[Combo]:
+def generate_combos(cfg: FixedConfig) -> Iterator[Combo]:  # 실제 계산 모든 조건을 만들어내는 코드
     for sys_path, opts in cfg.systems.items():
         for spacing, nbands, scell, pbc in itertools.product(
             opts.get("spacing", (0.2,)),
@@ -535,7 +592,7 @@ def generate_combos(cfg: FixedConfig) -> Iterator[Combo]:
                             raise ValueError(f"Unknown precond {precond}")
 
 
-def build_density_subpath(
+def build_density_subpath(  # SCF의 결과 density 파일을 저장할 경로를 생성
     *,
     sys_path: str,
     spacing: float,
@@ -561,7 +618,7 @@ def build_density_subpath(
 
 
 @dataclass
-class RunResult:
+class RunResult:  # 고정 계싼 한 번 수행한 여러 값
     run_idx: int
     ret_history: Path
     log_path: Path
@@ -569,7 +626,7 @@ class RunResult:
 
 
 @dataclass
-class RunPaths:
+class RunPaths:  # 하나에 Combo 에 대해 필요한 주요 디랙토리 및 파일 위치들
     base_subpath_scf: Path
     base_subpath_fixed: Path
     density_dir: Path
@@ -594,10 +651,12 @@ class RunPaths:
         return self.density_dir / "density.pt"
 
     def class_dir(self, label: str) -> Path:
-        return ensure_dir(self.history_dir / label)
+        return ensure_dir(self.history_dir / label)  # 디랙토리, histroy 파일 생성
 
 
-# ---- diag_tol 전달/미전달 해석
+# ========== diag_tol 전달/미전달 해석==========
+
+
 def _parse_optional_float_arg(s: Optional[str]) -> Tuple[bool, Optional[float]]:
     if s is None:
         return (False, None)  # 사용자 미지정
@@ -606,7 +665,9 @@ def _parse_optional_float_arg(s: Optional[str]) -> Tuple[bool, Optional[float]]:
     return (True, float(s))
 
 
-def _resolve_diag_tol_for_phase(phase: str) -> Optional[float]:
+def _resolve_diag_tol_for_phase(
+    phase: str,
+) -> Optional[float]:  # SCF 및 fixed 에서 사용할 diag_tol 을 각각 결정
     # why: 특정 phase에서 'none'을 명시하면 글로벌보다 우선해 완전 생략해야 함
     if phase == "scf":
         if CFG.diag_tol_scf_is_set:
@@ -619,7 +680,7 @@ def _resolve_diag_tol_for_phase(phase: str) -> Optional[float]:
     return None
 
 
-def build_combo_subpath(
+def build_combo_subpath(  # SCF, fixed 각각에 대해 이 조합이 어떤 파라미터로 돌았는지 전부 폴더 이름으로 생성
     *,
     sys_path: str,
     threads: int,
@@ -682,7 +743,9 @@ def build_combo_subpath(
     return Path(parts[0]).joinpath(*parts[1:])
 
 
-def prepare_paths(cfg: FixedConfig, combo: Combo) -> RunPaths:
+def prepare_paths(
+    cfg: FixedConfig, combo: Combo
+) -> RunPaths:  # 하나의 Combo 를 받아 파일 경로 설정 및 디랙토리 설정
     dens_sub = build_density_subpath(
         sys_path=combo.sys_path,
         spacing=combo.spacing,
@@ -736,7 +799,10 @@ def prepare_paths(cfg: FixedConfig, combo: Combo) -> RunPaths:
     )
 
 
-def build_cmd(
+# ========== 실제 실행 커맨드 및 실행 ==========
+
+
+def build_cmd(  # 실제 test.py 를 호출할 때  쓸 커맨드 라인 인자 리스트들 생성
     cfg: FixedConfig,
     combo: Combo,
     paths: RunPaths,
@@ -844,7 +910,7 @@ def build_cmd(
     return [x for x in cmd if x]
 
 
-def run_once(cmd: List[str], log_path: Path, threads: int) -> int:
+def run_once(cmd: List[str], log_path: Path, threads: int) -> int:  # 실제 프로세스 실행하는 함수
     env = os.environ.copy()
     env.update(
         {
@@ -859,7 +925,9 @@ def run_once(cmd: List[str], log_path: Path, threads: int) -> int:
         return proc.wait()
 
 
-def classify_runs_by_time(times: List[Tuple[int, Optional[float]]]) -> Dict[str, int]:
+def classify_runs_by_time(
+    times: List[Tuple[int, Optional[float]]]
+) -> Dict[str, int]:  # 동일 계산을 3번 돌릴 때, 시간 기준 정렬(fast, median, slow 결정)
     def key(t: Tuple[int, Optional[float]]):
         _, sec = t
         return float("inf") if sec is None else sec
@@ -875,7 +943,7 @@ def classify_runs_by_time(times: List[Tuple[int, Optional[float]]]) -> Dict[str,
     return {"fast": idxs[0], "median": idxs[1], "slow": idxs[2]}
 
 
-def write_setting_summary(
+def write_setting_summary(  # 전체 설정 요약을 summary로 저장
     results_root: Path, combos: Sequence[Combo], systems: Dict[str, Dict[str, Sequence]]
 ):
     ensure_dir(results_root)
@@ -966,7 +1034,9 @@ def write_pretty_summary(dirpath: Path, row: Dict[str, object], filename: str) -
         out_path.write_text(line + "\n", encoding="utf-8")
 
 
-def write_scf_only_summary(combo: Combo, scf_log: Path) -> None:
+def write_scf_only_summary(
+    combo: Combo, scf_log: Path
+) -> None:  # SCF 로그를 보고 summary 파일 생성
     metrics = parse_timer_metrics(scf_log)
     scf_iter_cnt = pick_metric(
         metrics, ["SCF iter.", "SCF iter", "SCF iteration"], "count"
@@ -1050,10 +1120,12 @@ def write_scf_only_summary(combo: Combo, scf_log: Path) -> None:
         "davidson_total": dav_total,
         "scf_iter_count": scf_iter_cnt,
     }
-    write_pretty_summary(RESULTS_ROOT, row, filename="calculation_summary_scf.txt")
+    write_pretty_summary(
+        RESULTS_ROOT, row, filename="calculation_summary_scf.txt"
+    )  # 저장되는 결과 파일
 
 
-def find_label_log(
+def find_label_log(  # fast, slow, median 의 존재 여부 확인
     runpaths: RunPaths, label: str, idx: Optional[int]
 ) -> Optional[Path]:
     cand: List[Path] = [
@@ -1071,7 +1143,7 @@ def find_label_log(
     return None
 
 
-def write_fixed_summary(
+def write_fixed_summary(  # fixed hamiltonian diagonalization 에서 사용
     runpaths: RunPaths, combo: Combo, labels: Dict[str, int]
 ) -> None:
     median_idx = labels.get("median")
@@ -1151,8 +1223,7 @@ def write_fixed_summary(
     write_pretty_summary(RESULTS_ROOT, row, filename="calculation_summary_fixed.txt")
 
 
-# =============================================================
-# 메인
+# ========== 메인 ==========
 def main():
     global VARY_TOKENS
     parser = argparse.ArgumentParser(add_help=False)
@@ -1216,6 +1287,13 @@ def main():
     if f_set:
         CFG.diag_tol_fixed_is_set = True
         CFG.diag_tol_fixed = f_val
+    # 기본값이 있으면 플래그도 켠다(사용자가 CLI로 안 넘겨도 전달되게)
+    if not g_set and CFG.diag_tol_global is not None:
+        CFG.diag_tol_global_is_set = True
+    if not s_set and CFG.diag_tol_scf is not None:
+        CFG.diag_tol_scf_is_set = True
+    if not f_set and CFG.diag_tol_fixed is not None:
+        CFG.diag_tol_fixed_is_set = True
 
     # diag_iter 적용: specific > legacy > default
     if args.diag_iter is not None:
