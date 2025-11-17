@@ -77,6 +77,9 @@ Git state 가 아래와 같은지 확인
 
 		# 4.  시스템 반복 계산
 		nohub python repeat_test.py --mode scf-then-fixed > log 2>&1 &
-			* 코드 내부에 계산 수행 파일 설정 및 반복 계산 설정을 수정하여 실행
+
+## repeat_test.py 사용법
+	이 코드는 
+	
 		
 		
