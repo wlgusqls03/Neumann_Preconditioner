@@ -88,7 +88,9 @@ Git state 가 아래와 같은지 확인
 		
 	2. SELECTED_SYSTEMS: List[str] = {...} 부분에 systems에 존재하는 파일 중, 반복 계산을 수행할 물질을 선택한다. 
 
-	3. OVERRIDE_BY_NAME: Dict[str, Dict] = {...} 부분은 2번에서 지정한 물질들의 spacing 및 supercell 에 대한 반복 계산을 위해 설정하는 부분이다. 이 부분을 따로 작성하지 않았지만, SELECTED_SYSTEMS: List[str] = {...} 구분에 들어있는 계산 시스템은 DEFAULT_SYSTEM_PARAMS = {...} 의 계산 설정을 받게 된다.
+	3. OVERRIDE_BY_NAME: Dict[str, Dict] = {...} 부분은 2번에서 지정한 물질들의 spacing 및 supercell 에 대한 반복 계산을 위해 설정하는 부분이다.
+	이 부분을 따로 작성하지 않았지만, SELECTED_SYSTEMS: List[str] = {...} 구분에 들어있는 계산 시스템은
+	DEFAULT_SYSTEM_PARAMS = {...} 의 계산 설정을 받게 된다.
 	ex)
 		SELECTED_SYSTEMS: List[str] = [
     						"MAPbI3.cif",
@@ -106,9 +108,12 @@ Git state 가 아래와 같은지 확인
 			},
 		}		
 
-		이렇게 설정하면 MAPbI3 는 supercell 에 대해 반복 계산하고 supercell (2, 2, 2), (2, 2, 3), 을 사용하나, 설정 하지 않은 "Maltododecaose.sdf", "C60_tetramer.xyz" 는 기본 설정값인 supercell = (1, 1, 1) 을 받게 된다.
+		이렇게 설정하면 MAPbI3 는 supercell 에 대해 반복 계산하고 supercell (2, 2, 2), (2, 2, 3), 을 사용하나,
+		설정 하지 않은 "Maltododecaose.sdf", "C60_tetramer.xyz" 는 기본 설정값인 supercell = (1, 1, 1) 을 받게 된다.
 		
-	4. USER_SWEEP 과 GLOBAL_FIXED 부분을 수정하여 반복 계산, 고정 계산에 쓸 물리량을 조절한다. USER_SWEEP 에 리스트에 원소 개수 별로 반복 계산을 수행한다. 그리고, GLOBAL_FIXED 는 고정되어 전달하는 인자값을 조절한다. 이때, 비어있는 리스트에 경우엔 하단의 class FixedConfig: 부분에 설정된 기본 값이 자동으로 들어가게 된다.
+	4. USER_SWEEP 과 GLOBAL_FIXED 부분을 수정하여 반복 계산, 고정 계산에 쓸 물리량을 조절한다.
+	USER_SWEEP 에 리스트에 원소 개수 별로 반복 계산을 수행한다. 그리고, GLOBAL_FIXED 는 고정되어 전달하는 인자값을 조절한다. 
+	이때, 비어있는 리스트에 경우엔 하단의 class FixedConfig: 부분에 설정된 기본 값이 자동으로 들어가게 된다.
 	ex) 
 		USER_SWEEP = dict(
     		preconds=[], # 공석으로 neumann , ISI, merge preconditioner 계산을 모두 수행하도록 설정  
@@ -147,9 +152,12 @@ Git state 가 아래와 같은지 확인
     		verbosity=1,
     		seed=0,                                                                                		)
 		
-	5. 결과 수행 이후 디랙토리에 로그가 나타나 계산 진척 정도와 저장되는 density files, stdout.log 의 경로를 확인할 수 있다. runs_per_combo = ... 옵션으로 인해 동일한 계산 설정을 여러번 수행하는데, 이 중 중앙값을 calculation_summary_fixed.txt ,calculation_summary_scf.txt 로 저장한다.
+	5. 결과 수행 이후 디랙토리에 로그가 나타나 계산 진척 정도와 저장되는 density files, stdout.log 의 경로를 확인할 수 있다.
+	runs_per_combo = ... 옵션으로 인해 동일한 계산 설정을 여러번 수행하는데, 이 중 중앙값을 
+	calculation_summary_fixed.txt ,calculation_summary_scf.txt 로 저장한다.
 
-	6. 결과 폴더 내부에 density 폴더는 SCF 계산에서 수렴한 density file 을 저장하며, 이를 이용해 fixed hamiltonian diagonalization 의 hamiltonian 을 로드한다.
+	6. 결과 폴더 내부에 density 폴더는 SCF 계산에서 수렴한 density file 을 저장하며,
+	이를 이용해 fixed hamiltonian diagonalization 의 hamiltonian 을 로드한다.
 
 	7. 결과 폴더 내부에 log 폴더는 SCF 계산에서 나온 log를 저장한다.
 
