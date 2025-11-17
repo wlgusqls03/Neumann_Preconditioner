@@ -41,7 +41,9 @@
 
 
 Git state 가 아래와 같은지 확인
+
 Branch: multi_gpu
+
 Commit: 7947754a5d1e6b5743f976c2fe46aba8b97c227a
 
 ## run_files.py
